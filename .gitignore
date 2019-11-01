@@ -1,3 +1,2 @@
-src/sonos_remote_config.py*
-src/sonos_remote_config.*.py
+src/sonos_remote_config*.py
 
