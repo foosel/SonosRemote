@@ -4,59 +4,67 @@ import network
 import sys
 import time
 
+import urequests as requests
+import uasyncio as asyncio
+
+from aswitch import Pushbutton
 from rotary_irq_esp import RotaryIRQ
 
 import sonos_remote_config as config
 
-builtin_led = machine.Pin(2, machine.Pin.OUT)
+class RotaryEncoder(object):
+    def __init__(self, pin_clk, pin_dt, delay=100, cw=None, ccw=None):
+        self._rotary = RotaryIRQ(pin_clk, pin_dt)
+        self._delay = delay
 
-sta_if = network.WLAN(network.STA_IF)
+        self._cb_cw = cw
+        self._cb_ccw = ccw
 
-def wait_for_wifi(timeout):
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.check())
+    
+    async def check(self):
+        old_value = 0
+
+        while True:
+            new_value = self._rotary.value()
+            difference = abs(new_value - old_value)
+
+            print("Value: {} -> {}, {} steps".format(old_value, new_value, difference))
+
+            if new_value > old_value and callable(self._cb_ccw):
+                self._cb_ccw(difference)
+            elif old_value > new_value and callable(self._cb_cw):
+                self._cb_cw(difference)
+            
+            old_value = new_value
+
+            await asyncio.sleep_ms(self._delay)
+
+def wait_for_wifi(wifi, timeout=10):
     for _ in range(timeout):
-        if sta_if.isconnected():
+        if wifi.isconnected():
             break
         time.sleep(1)
 
-wait_for_wifi(10)
+def ensure_connection(ssid, key):
+    sta_if = network.WLAN(network.STA_IF)
+    wait_for_wifi(sta_if)
 
-if not sta_if.isconnected():
-    sta_if.active(True)
-    sta_if.connect(config.wifi_ssid, config.wifi_pass)
-    
-    wait_for_wifi(10)
     if not sta_if.isconnected():
-        print("Error: could not connect to wifi network")
-        sys.exit(-1)
-
-try:
-    import urequests
-except ImportError:
-    # try to install it
-    print("urequests seems to be missing, trying to install it via upip")
-    import upip
-    upip.install("micropython-urequests")
-    import urequests
-
-try:
-    import uasyncio as asyncio
-except ImportError:
-    # try to install it
-    print("uasyncio seems to be missing, trying to install it via upip")
-    import upip
-    upip.install("uasyncio")
-    import uasyncio as asyncio
-
-builtin_led(1)
-print("Connected and ready to control Sonos in room {}".format(config.sonos_room))
-
-knob = RotaryIRQ(config.pin_rotary_clk, config.pin_rotary_dt)
+        sta_if.active(True)
+        sta_if.connect(ssid, key)
+        
+        wait_for_wifi(sta_if)
+        if not sta_if.isconnected():
+            print("Error: could not connect to wifi network")
+            sys.exit(-1)
 
 def call_url(url):
     gc.collect()
     resp = None
     try:
-        resp = urequests.get(url, stream=True)
+        resp = requests.get(url, stream=True)
     except Exception as e:
         if isinstance(e, OSError) and resp is not None:
             resp.close()
@@ -64,41 +72,49 @@ def call_url(url):
     gc.collect()
     return resp
 
-async def evaluate_volume():
-    old_knob = 0
+def volume_up(steps):
+    url = "{}/{}/volume/+{}".format(config.sonos_base, config.sonos_room, steps * config.sonos_volume_step)
+    print("\t## Volume up by {}: {}".format(steps, url))
+    call_url(url)
 
-    while True:
-        new_knob = knob.value()
-        print("Value = {}".format(new_knob))
+def volume_down(steps):
+    url = "{}/{}/volume/-{}".format(config.sonos_base, config.sonos_room, steps * config.sonos_volume_step)
+    print("\t## Volume down by {}: {}".format(steps, url))
+    call_url(url)
 
-        difference = abs(new_knob - old_knob)
-        print("\t## Steps: {}".format(difference))
+def toggle_play():
+    url = "{}/{}/playpause".format(config.sonos_base, config.sonos_room)
+    print("\t## Toggle play: {}".format(url))
+    call_url(url)
 
-        #total_volume_step = config.sonos_volume_step
-        total_volume_step = difference
+def next_track():
+    url = "{}/{}/next".format(config.sonos_base, config.sonos_room)
+    print("\t## Next track: {}".format(url))
+    call_url(url)
 
-        try:
-            if new_knob > old_knob:
-                # volume down
-                url = "{}/{}/volume/-{}".format(config.sonos_base, config.sonos_room, total_volume_step)
-                print("\t## Volume down by {}: {}".format(total_volume_step, url))
-                call_url(url)
-            elif new_knob < old_knob:
-                # volume up
-                url = "{}/{}/volume/+{}".format(config.sonos_base, config.sonos_room, total_volume_step)
-                print("\t## Volume up by {}: {}".format(total_volume_step, url))
-                call_url(url)
-        except Exception as e:
-            print("Something went wrong while trying to adjust the volume: {}".format(e))
-        
-        old_knob = new_knob
+def main():
+    builtin_led = machine.Pin(2, machine.Pin.OUT)
+    play_button = machine.Pin(config.pin_rotary_sw, machine.Pin.IN)
 
-        await asyncio.sleep_ms(100)
+    # connect wifi
+    ensure_connection(config.wifi_ssid, config.wifi_pass)
 
-loop = asyncio.get_event_loop()
-loop.create_task(evaluate_volume())
+    # success
+    builtin_led(1)
+    print("Connected and ready to control Sonos in room {}".format(config.sonos_room))
 
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    print("Interrupted")
+    # initialize hardware
+    volume_knob = RotaryEncoder(config.pin_rotary_clk, config.pin_rotary_dt, cw=volume_up, ccw=volume_down, delay=100)
+    button = Pushbutton(play_button)
+    button.press_func(toggle_play)
+    button.double_func(next_track)
+
+    # ... and run
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        print("Interrupted")
+
+if __name__ == "__main__":
+    main()
