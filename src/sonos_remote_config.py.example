@@ -3,7 +3,7 @@ wifi_pass = "MySuperSecretPassphrase"
 
 sonos_base = "http://sonosapi.example.com"
 sonos_room = "someroom"
-sonos_volume_step = "5"
+sonos_volume_step = 5
 
 pin_rotary_clk = 12
 pin_rotary_dt = 13
