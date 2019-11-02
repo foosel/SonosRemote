@@ -113,12 +113,22 @@ def main():
     builtin_led(1)
     print("Connected and ready to control Sonos in room {}".format(config.sonos_room))
 
+    # led light wrapper
+    def with_led(wrapped):
+        def f(*args, **kwargs):
+            builtin_led(0) # light on
+            try:
+                return wrapped(*args, **kwargs)
+            finally:
+                builtin_led(1) # light off
+        return f
+
     # initialize hardware
-    volume_knob = RotaryEncoder(config.pin_rotary_clk, config.pin_rotary_dt, cw=volume_up, ccw=volume_down, delay=100)
+    volume_knob = RotaryEncoder(config.pin_rotary_clk, config.pin_rotary_dt, cw=with_led(volume_up), ccw=with_led(volume_down), delay=100)
     button = Pushbutton(play_button, suppress=True)
-    button.release_func(toggle_play)
-    button.double_func(next_track)
-    button.long_func(prev_track)
+    button.release_func(with_led(toggle_play))
+    button.double_func(with_led(next_track))
+    button.long_func(with_led(prev_track))
 
     # ... and run
     loop = asyncio.get_event_loop()
