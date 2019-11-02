@@ -38,8 +38,11 @@ type_coro = type(_g())
 
 # If a callback is passed, run it and return.
 # If a coro is passed initiate it and return.
+# If a false-y value is passed, return.
 # coros are passed by name i.e. not using function call syntax.
 def launch(func, tup_args):
+    if not func:
+        return
     res = func(*tup_args)
     if isinstance(res, type_coro):
         loop = asyncio.get_event_loop()
@@ -149,9 +152,13 @@ class Pushbutton:
         self._dblpend = False  # Doubleclick waiting for 2nd click
         self._dblran = False  # Doubleclick executed user function
         self._tf = False
+        self._ta = ()
         self._ff = False
+        self._fa = ()
         self._df = False
+        self._da = ()
         self._lf = False
+        self._la = ()
         self._ld = False  # Delay_ms instance for long press
         self._dd = False  # Ditto for doubleclick
         self.sense = pin.value()  # Convert from electrical to logical value
