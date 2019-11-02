@@ -12,6 +12,13 @@ from rotary_irq_esp import RotaryIRQ
 
 import sonos_remote_config as config
 
+ROOM_URL = "{base}/{room}"
+VOLUP_URL = ROOM_URL + "/volume/+{step}"
+VOLDN_URL = ROOM_URL + "/volume/-{step}"
+PLAY_URL = ROOM_URL + "/playpause"
+NEXT_URL = ROOM_URL + "/next"
+PREV_URL = ROOM_URL + "/previous"
+
 class RotaryEncoder(object):
     def __init__(self, pin_clk, pin_dt, delay=100, cw=None, ccw=None):
         self._rotary = RotaryIRQ(pin_clk, pin_dt)
@@ -29,8 +36,6 @@ class RotaryEncoder(object):
         while True:
             new_value = self._rotary.value()
             difference = abs(new_value - old_value)
-
-            print("Value: {} -> {}, {} steps".format(old_value, new_value, difference))
 
             if new_value > old_value and callable(self._cb_ccw):
                 self._cb_ccw(difference)
@@ -73,23 +78,28 @@ def call_url(url):
     return resp
 
 def volume_up(steps):
-    url = "{}/{}/volume/+{}".format(config.sonos_base, config.sonos_room, steps * config.sonos_volume_step)
-    print("\t## Volume up by {}: {}".format(steps, url))
+    url = VOLUP_URL.format(base=config.sonos_base, room=config.sonos_room, step=steps * config.sonos_volume_step)
+    print("## Volume up by {}: {}".format(steps, url))
     call_url(url)
 
 def volume_down(steps):
-    url = "{}/{}/volume/-{}".format(config.sonos_base, config.sonos_room, steps * config.sonos_volume_step)
-    print("\t## Volume down by {}: {}".format(steps, url))
+    url = VOLDN_URL.format(base=config.sonos_base, room=config.sonos_room, step=steps * config.sonos_volume_step)
+    print("## Volume down by {}: {}".format(steps, url))
     call_url(url)
 
 def toggle_play():
-    url = "{}/{}/playpause".format(config.sonos_base, config.sonos_room)
-    print("\t## Toggle play: {}".format(url))
+    url = PLAY_URL.format(base=config.sonos_base, room=config.sonos_room)
+    print("## Toggle play: {}".format(url))
     call_url(url)
 
 def next_track():
-    url = "{}/{}/next".format(config.sonos_base, config.sonos_room)
-    print("\t## Next track: {}".format(url))
+    url = NEXT_URL.format(base=config.sonos_base, room=config.sonos_room)
+    print("## Next track: {}".format(url))
+    call_url(url)
+
+def prev_track():
+    url = PREV_URL.format(base=config.sonos_base, room=config.sonos_room)
+    print("## Previous track: {}".format(url))
     call_url(url)
 
 def main():
@@ -105,9 +115,10 @@ def main():
 
     # initialize hardware
     volume_knob = RotaryEncoder(config.pin_rotary_clk, config.pin_rotary_dt, cw=volume_up, ccw=volume_down, delay=100)
-    button = Pushbutton(play_button)
-    button.press_func(toggle_play)
+    button = Pushbutton(play_button, suppress=True)
+    button.release_func(toggle_play)
     button.double_func(next_track)
+    button.long_func(prev_track)
 
     # ... and run
     loop = asyncio.get_event_loop()
