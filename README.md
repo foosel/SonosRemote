@@ -20,6 +20,8 @@ Sonos remote control based on an ESP8266, a rotary encoder, MicroPython and [Son
   * Wemos D1 Mini
   * KY-040 rotary encoder breakout
   * Existing and configured install of [Sonos HTTP API](https://jishi.github.io/node-sonos-http-api/) (e.g. in a Docker container).
+  * 3d printed case & knob
+  * 2 x M3x10mm screws
 
 ## Setup
 
