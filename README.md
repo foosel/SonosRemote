@@ -2,6 +2,8 @@
 
 Sonos remote control based on an ESP8266, a rotary encoder, MicroPython and [Sonos HTTP API](https://jishi.github.io/node-sonos-http-api/).
 
+![The finished remote](./picture.jpg)
+
 ## Features
 
   * Control playback and volume with one knob
@@ -23,6 +25,7 @@ Sonos remote control based on an ESP8266, a rotary encoder, MicroPython and [Son
 
 The firmware files can be find in the `src/` folder.
 
+  * If not already done, install [Sonos HTTP API](https://jishi.github.io/node-sonos-http-api/) somewhere on your network. This is mandatory.
   * Flash current version of MicroPython to the Wemos D1 Mini as described [here](https://docs.micropython.org/en/latest/esp8266/tutorial/intro.html)
   * Create a `sonos_remote_config.py` for your target network, room and pin assignment. An example is provided which assumes the following wiring for the rotary encoder:
     * CLK to D6 aka pin 12
