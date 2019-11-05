@@ -13,6 +13,7 @@ Sonos remote control based on an ESP8266, a rotary encoder, MicroPython and [Son
     * Previous track on long press
   * Activity LED on sent commands
   * Configurable via provisioning file
+  * Syslog support for info/debug logging
   * Implemented based on asyncio
 
 ## BOM/Prerequisits
