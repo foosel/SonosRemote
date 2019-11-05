@@ -8,3 +8,6 @@ sonos_volume_step = 5
 pin_rotary_clk = 12
 pin_rotary_dt = 13
 pin_rotary_sw = 14
+
+syslog_enable = False
+syslog_host = "syslog.example.com"

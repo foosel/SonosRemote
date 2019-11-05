@@ -6,6 +6,7 @@ import time
 
 import urequests as requests
 import uasyncio as asyncio
+import usyslog
 
 from aswitch import Pushbutton
 from rotary_irq_esp import RotaryIRQ
@@ -18,6 +19,18 @@ VOLDN_URL = ROOM_URL + "/volume/-{step}"
 PLAY_URL = ROOM_URL + "/playpause"
 NEXT_URL = ROOM_URL + "/next"
 PREV_URL = ROOM_URL + "/previous"
+
+if config.syslog_enable:
+    class LocalAndUDPLog(usyslog.UDPClient):
+        def log(self, severity, message):
+            print(message)
+            usyslog.UDPClient.log(self, severity, "SonosRemote {}".format(message))
+    log = LocalAndUDPLog(ip=config.syslog_host)
+else:
+    class LocalLog(usyslog.SyslogClient):
+        def log(self, severity, message):
+            print(message)
+    log = LocalLog()
 
 class RotaryEncoder(object):
     def __init__(self, pin_clk, pin_dt, delay=100, cw=None, ccw=None):
@@ -79,27 +92,27 @@ def call_url(url):
 
 def volume_up(steps):
     url = VOLUP_URL.format(base=config.sonos_base, room=config.sonos_room, step=steps * config.sonos_volume_step)
-    print("## Volume up by {}: {}".format(steps, url))
+    log.debug("Volume up by {}: {}".format(steps, url))
     call_url(url)
 
 def volume_down(steps):
     url = VOLDN_URL.format(base=config.sonos_base, room=config.sonos_room, step=steps * config.sonos_volume_step)
-    print("## Volume down by {}: {}".format(steps, url))
+    log.debug("Volume down by {}: {}".format(steps, url))
     call_url(url)
 
 def toggle_play():
     url = PLAY_URL.format(base=config.sonos_base, room=config.sonos_room)
-    print("## Toggle play: {}".format(url))
+    log.debug("Toggle play: {}".format(url))
     call_url(url)
 
 def next_track():
     url = NEXT_URL.format(base=config.sonos_base, room=config.sonos_room)
-    print("## Next track: {}".format(url))
+    log.debug("Next track: {}".format(url))
     call_url(url)
 
 def prev_track():
     url = PREV_URL.format(base=config.sonos_base, room=config.sonos_room)
-    print("## Previous track: {}".format(url))
+    log.debug("Previous track: {}".format(url))
     call_url(url)
 
 def main():
@@ -111,7 +124,7 @@ def main():
 
     # success
     builtin_led(1)
-    print("Connected and ready to control Sonos in room {}".format(config.sonos_room))
+    log.info("Connected and ready to control Sonos in room {}".format(config.sonos_room))
 
     # led light wrapper
     def with_led(wrapped):
