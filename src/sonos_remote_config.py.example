@@ -1,5 +1,6 @@
 wifi_ssid = "MySSID"
 wifi_pass = "MySuperSecretPassphrase"
+wifi_hostname = "sonos-remote-someroom" 
 
 sonos_base = "http://sonosapi.example.com"
 sonos_room = "someroom"

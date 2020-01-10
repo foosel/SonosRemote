@@ -65,12 +65,15 @@ def wait_for_wifi(wifi, timeout=10):
             break
         time.sleep(1)
 
-def ensure_connection(ssid, key):
+def ensure_connection(ssid, key, hostname=None):
     sta_if = network.WLAN(network.STA_IF)
+    sta_if.active(True)
+    if hostname:
+        print("Setting DHCP hostname to {}".format(hostname))
+        sta_if.config(dhcp_hostname=hostname)
     wait_for_wifi(sta_if)
 
     if not sta_if.isconnected():
-        sta_if.active(True)
         sta_if.connect(ssid, key)
         
         wait_for_wifi(sta_if)
@@ -120,7 +123,9 @@ def main():
     play_button = machine.Pin(config.pin_rotary_sw, machine.Pin.IN)
 
     # connect wifi
-    ensure_connection(config.wifi_ssid, config.wifi_pass)
+    ensure_connection(config.wifi_ssid, 
+                      config.wifi_pass,
+                      hostname=config.wifi_hostname)
 
     # success
     builtin_led(1)
